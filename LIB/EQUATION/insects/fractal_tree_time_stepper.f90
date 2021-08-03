@@ -1,5 +1,6 @@
 !-------------------------------------------------------------------------------
 ! This is in INSECT%STATE:
+! I WILL NEED TO REDEFINE LATER
 ! STATE(1) : x-position of body
 ! STATE(2) : y-position of body
 ! STATE(3) : z-position of body
@@ -25,40 +26,7 @@
 ! RHS of the ODE system.
 ! TASK: from STATE compute RHS
 !-------------------------------------------------------------------------------
-
-subroutine rigid_solid_rhs(time, it, state, rhs, force_g, torque_g, Insect)
-    implicit none
-    integer, intent(in) :: it
-    real(kind=rk),intent(in) :: time, force_g(1:3), torque_g(1:3)
-    type(diptera),intent(inout) :: Insect
-    real(kind=rk),intent(inout) :: state(1:20)
-    real(kind=rk),intent(inout) :: rhs(1:20)
-
-    ! if Insect%use_dynamic_tree then call fractal_tree_time_stepper
-    if (Insect%fractal_tree_motion) then
-        call rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insect)
-        write(*,'("its working")')
-        !fractal_tree_time_stepper.f90 > rigid_solid_rhs_fractaltree
-    else
-        call rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insect)
-    endif
-end subroutine
-
-subroutine rigid_solid_init(time, Insect, resume_backup)
-    implicit none
-
-    real(kind=rk), intent(in) :: time
-    type(diptera), intent(inout) :: Insect
-    logical, intent(in) :: resume_backup
-
-    if (Insect%fractal_tree_motion) then
-        call rigid_solid_init_fractaltree(time, Insect, resume_backup)
-    else
-        call rigid_solid_init_insect(time, Insect, resume_backup)
-    endif
-end subroutine
-
-subroutine rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insect)
+subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, Insect)
     implicit none
 
     integer, intent(in) :: it
@@ -66,8 +34,8 @@ subroutine rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insec
     type(diptera),intent(inout) :: Insect
     real(kind=rk),intent(inout) :: state(1:20)
     real(kind=rk),intent(inout) :: rhs(1:20)
-    real(kind=rk) :: m, Jx, Jy,Jz,Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
-    real(kind=rk) :: omx,omy,omz, Jxx,Jyy,Jzz
+    real(kind=rk) :: m, Jx, Jy, Jz, Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
+    real(kind=rk) :: omx,omy,omz, Jxx, Jyy, Jzz
     real(kind=rk), dimension(0:3) :: ep
     real(kind=rk), dimension(1:3) :: ROT, torque_body
     real(kind=rk), dimension(1:3,1:3) :: M_body, M_wing_l
@@ -162,77 +130,11 @@ subroutine rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insec
         call append_t_file('forces_rk.t', (/time, rhs(3), rhs(6), force_g(3)/))
     endif
 
-    !**********************************
-    !** Wing fsi model               **
-    !**********************************
-    ! wing fsi solver is used. we therefore have to solve 7 equations for the left
-    ! wing, which are the quaternion components and the angular velocity
-    ! if (Insect%wing_fsi == "yes") then
-    !     ! the wing fsi model must assume resting body: if not, we have a more complicated
-    !     ! multi-body problem to solve
-    !     if (maxval(Insect%DoF_on_off) == 1) then
-    !         call abort(1313,"you must not use wing fsi AND body fsi at the same time")
-    !     endif
-    !     ! for the model, we indeed need the wing inertia..
-    !     if (maxval( (/Insect%Jxx,Insect%Jyy,Insect%Jzz,Insect%Jxy/) ) < 1.0d-8) then
-    !         call abort(1314,"you forgot to set wing inertia tensor...")
-    !     endif
-    !
-    !     Insect%STATE(19:20) =Insect%STATE(19:20) *0.d0
-    !
-    !     ! define abbreviations for simplicity
-    !     Jxx = Insect%Jxx
-    !     Jyy = Insect%Jyy
-    !     Jzz = Insect%Jzz
-    !     Jxy = Insect%Jxy
-    !     ep = Insect%STATE(14:17)
-    !
-    !     call body_rotation_matrix( Insect, M_body )
-    !     call wing_left_rotation_matrix( Insect, M_wing_l )
-    !     ! get the current muscle moment
-    !     call muscle_moment(time, Insect)
-    !
-    !     ! aero parts
-    !     T_wing_g = Insect%PartIntegrals(2)%Torque(1:3)
-    !     T_wing_w = matmul(M_wing_l,matmul(M_body,T_wing_g)) + Insect%torque_muscle_l_b
-    !     ! T_wing_w = matmul(M_wing_l,matmul(M_body,T_wing_g)) + matmul(M_wing_l, Insect%torque_muscle_l_b)
-    !
-    !     ! T_wing_w = T_wing_w +  Insect%torque_muscle_l_b
-    !
-    !     ! total torque in wing system with startup conditioner 's'
-    !     Tx = T_wing_w(1) * s
-    !     Ty = T_wing_w(2) * s
-    !     Tz = T_wing_w(3) * s
-    !
-    !     ! angular velocity components
-    !     omx = Insect%STATE(18)
-    !     omy = Insect%STATE(19)
-    !     omz = Insect%STATE(20)
-    !
-    !     Insect%RHS_this(14) = (-ep(1)*omx-ep(2)*omy-ep(3)*omz)/2.d0   ! 1st quaternion component
-    !     Insect%RHS_this(15) = (+ep(0)*omx-ep(3)*omy+ep(2)*omz)/2.d0   ! 2nd quaternion component
-    !     Insect%RHS_this(16) = (+ep(3)*omx+ep(0)*omy-ep(1)*omz)/2.d0   ! 3rd quaternion component
-    !     Insect%RHS_this(17) = (-ep(2)*omx+ep(1)*omy+ep(0)*omz)/2.d0   ! 4th quaternion component
-    !
-    !     ! x-component ang. velocity
-    !     Insect%RHS_this(18) = Jxy*(Ty-omz*(Jxx*omx+Jxy*omy)+Jzz*omx*omy) -(Jyy*(Tx+omz*(Jxy*omx+Jyy*omy)-Jzz*omy*omz))
-    !     Insect%RHS_this(18) = Insect%RHS_this(18) / (Jxy**2-Jxx*Jyy)
-    !     ! y-component ang. velocity
-    !     Insect%RHS_this(19) = Jxy*(Tx+omz*(Jyy*omy+Jxy*omx)-Jzz*omy*omz) -(Jxx*(Ty-omz*(Jxy*omy+Jxx*omx)+Jzz*omx*omz))
-    !     Insect%RHS_this(19) = Insect%RHS_this(19) / (Jxy**2-Jxx*Jyy)
-    !     ! z-component ang. velocity
-    !     Insect%RHS_this(20) = (Tz+omy*(Jxx*omx+Jxy*omy)-omx*(Jxy*omx+Jyy*omy))/Jzz
-    !
-    !     if (root) then
-    !         write(*,'("t=",f8.4,2x,3(es12.4,1x),"// ",3(es12.4,1x),"// ",3(es12.4,1x),&
-    !         &" alpha=",f6.2," phi=",f6.2," theta=",f6.2)') &
-    !         time, T_wing_w, Insect%torque_muscle_l_b, Insect%STATE(18:20), &
-    !         rad2deg(Insect%alpha_l), rad2deg(Insect%phi_l), rad2deg(Insect%theta_l)
-    !     endif
-    ! endif
 end subroutine
 
-subroutine rigid_solid_init_insect(time, Insect, resume_backup)
+
+
+subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
     implicit none
 
     real(kind=rk), intent(in) :: time
@@ -348,6 +250,7 @@ subroutine rigid_solid_init_insect(time, Insect, resume_backup)
             Insect%STATE(20) = 0.d0    ! x-component ang. velocity
         endif
     endif ! of backup/no backup if
+
 
     if(root) write(*,'("Insect%STATE=(",20(es15.8,1x),")")')  Insect%STATE
 end subroutine

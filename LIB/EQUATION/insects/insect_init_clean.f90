@@ -284,6 +284,8 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
     call read_param_mpi(PARAMS, "Insects", "fractal_tree_x0", Insect%fractal_tree_x0, (/0.0d0, 0.0d0, 0.0d0/) )
     call read_param_mpi(PARAMS, "Insects", "fractal_tree_scaling", Insect%fractal_tree_scaling, 1.0_rk )
 
+    ! section for new fractal_tree_time_stepper
+    call read_param_mpi(PARAMS, "Insects", "fractal_tree_motion", Insect%fractal_tree_motion, .false.)
 
     ! wing inertia tensor (we currently assume two identical forewings and two identical hindwings)
     ! this allows computing inertial power and wing FSI model

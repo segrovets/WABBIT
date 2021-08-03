@@ -17,7 +17,8 @@ module module_insects
   aero_power, inert_power, read_insect_STATE_from_file, rigid_solid_init, rigid_solid_rhs, &
   BodyMotion, FlappingMotionWrap, StrokePlane, mask_from_pointcloud, &
   body_rotation_matrix, wing_right_rotation_matrix, wing_left_rotation_matrix, write_kinematics_file, &
-  wing_right2_rotation_matrix, wing_left2_rotation_matrix
+  wing_right2_rotation_matrix, wing_left2_rotation_matrix,&
+  rigid_solid_rhs_fractaltree, rigid_solid_rhs_insect, rigid_solid_init_fractaltree, rigid_solid_init_insect
   ! type definitions
   PUBLIC :: wingkinematics, diptera
 
@@ -74,7 +75,6 @@ module module_insects
   real(kind=rk), allocatable, save :: treedata_boundingbox(:,:)
   ! array for superSTL file for the body
   real(kind=rk), allocatable, save :: xyz_nxnynz(:,:)
-
 
   !-----------------------------------------------------------------------------
   ! TYPE DEFINITIONS
@@ -231,12 +231,13 @@ module module_insects
     logical :: damaged(1:4)
 
     !--------------------------------------------------------------
-    ! Wing kinematics
+    ! Tree kinematics
     !--------------------------------------------------------------
     logical :: fractal_tree = .false.
     character(len=clong) :: fractal_tree_file = "tree_data.in"
     real(kind=rk), dimension(1:3) :: fractal_tree_x0 = (/0.0_rk, 0.0_rk, 0.0_rk/)
     real(kind=rk) :: fractal_tree_scaling = 1.0_rk
+    logical :: fractal_tree_motion = .false.
 
     !--------------------------------------------------------------
     ! Wing kinematics
@@ -291,6 +292,7 @@ contains
 #include "body_geometry.f90"
 #include "body_motion.f90"
 #include "rigid_solid_time_stepper.f90"
+#include "fractal_tree_time_stepper.f90"
 #include "wings_geometry.f90"
 #include "wings_motion.f90"
 #include "stroke_plane.f90"
