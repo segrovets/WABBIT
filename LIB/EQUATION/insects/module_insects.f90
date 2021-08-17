@@ -164,7 +164,7 @@ module module_insects
     !-------------------------------------------------------------
     real(kind=rk) :: time=0.d0
     real(kind=rk), allocatable :: RHS(:,:)
-    real(kind=rk), dimension(1:20) :: STATE=0.d0
+    real(kind=rk), allocatable :: STATE(:)
     ! STATE(1) : x-position of body
     ! STATE(2) : y-position of body
     ! STATE(3) : z-position of body
@@ -238,6 +238,7 @@ module module_insects
     real(kind=rk), dimension(1:3) :: fractal_tree_x0 = (/0.0_rk, 0.0_rk, 0.0_rk/)
     real(kind=rk) :: fractal_tree_scaling = 1.0_rk
     logical :: fractal_tree_motion = .false.
+    integer :: state_array_len = 20
 
     !--------------------------------------------------------------
     ! Wing kinematics

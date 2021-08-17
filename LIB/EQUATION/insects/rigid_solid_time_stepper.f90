@@ -31,14 +31,12 @@ subroutine rigid_solid_rhs(time, it, state, rhs, force_g, torque_g, Insect)
     integer, intent(in) :: it
     real(kind=rk),intent(in) :: time, force_g(1:3), torque_g(1:3)
     type(diptera),intent(inout) :: Insect
-    real(kind=rk),intent(inout) :: state(1:20)
-    real(kind=rk),intent(inout) :: rhs(1:20)
+    real(kind=rk),intent(inout) :: state(1:Insect%state_array_len)
+    real(kind=rk),intent(inout) :: rhs(1:Insect%state_array_len)
 
     ! if Insect%use_dynamic_tree then call fractal_tree_time_stepper
     if (Insect%fractal_tree_motion) then
-        call rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insect)
-        write(*,'("its working")')
-        !fractal_tree_time_stepper.f90 > rigid_solid_rhs_fractaltree
+        call rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, Insect)
     else
         call rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insect)
     endif
@@ -64,8 +62,8 @@ subroutine rigid_solid_rhs_insect(time, it, state, rhs, force_g, torque_g, Insec
     integer, intent(in) :: it
     real(kind=rk),intent(in) :: time, force_g(1:3), torque_g(1:3)
     type(diptera),intent(inout) :: Insect
-    real(kind=rk),intent(inout) :: state(1:20)
-    real(kind=rk),intent(inout) :: rhs(1:20)
+    real(kind=rk),intent(inout) :: state(1:Insect%state_array_len)
+    real(kind=rk),intent(inout) :: rhs(1:Insect%state_array_len)
     real(kind=rk) :: m, Jx, Jy,Jz,Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
     real(kind=rk) :: omx,omy,omz, Jxx,Jyy,Jzz
     real(kind=rk), dimension(0:3) :: ep

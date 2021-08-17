@@ -32,8 +32,8 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     integer, intent(in) :: it
     real(kind=rk),intent(in) :: time, force_g(1:3), torque_g(1:3)
     type(diptera),intent(inout) :: Insect
-    real(kind=rk),intent(inout) :: state(1:20)
-    real(kind=rk),intent(inout) :: rhs(1:20)
+    real(kind=rk),intent(inout) :: state(1:Insect%state_array_len)
+    real(kind=rk),intent(inout) :: rhs(1:Insect%state_array_len)
     real(kind=rk) :: m, Jx, Jy, Jz, Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
     real(kind=rk) :: omx,omy,omz, Jxx, Jyy, Jzz
     real(kind=rk), dimension(0:3) :: ep

@@ -24,7 +24,7 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
     type(inifile) :: PARAMS
     real(kind=rk),dimension(1:3)::defaultvec
     character(len=clong) :: DoF_string, dummystr
-    integer :: j, tmp, mpirank, mpicode, ntri
+    integer :: j, tmp, mpirank, mpicode, ntri, state_array_len
     integer(kind=2) :: wingID, Nwings
 
     ! in this module, we use the logical ROOT to avoid the integer comparison mpirank==0
@@ -287,6 +287,15 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
     ! section for new fractal_tree_time_stepper
     call read_param_mpi(PARAMS, "Insects", "fractal_tree_motion", Insect%fractal_tree_motion, .false.)
 
+    if (Insect%fractal_tree_motion) then
+        Insect%state_array_len = 25 !change here according to need
+    else
+        Insect%state_array_len = 20
+    endif
+    if (.not. allocated(Insect%STATE)) then
+        allocate(Insect%STATE(1:Insect%state_array_len))
+    endif
+
     ! wing inertia tensor (we currently assume two identical forewings and two identical hindwings)
     ! this allows computing inertial power and wing FSI model
     call read_param_mpi(PARAMS,"Insects","Jxx",Insect%Jxx,0.d0)
@@ -445,6 +454,7 @@ subroutine insect_clean(Insect)
     if (allocated(wing_thickness_profile)) deallocate ( wing_thickness_profile )
     if (allocated(corrugation_profile)) deallocate ( corrugation_profile )
     if (allocated(mask_wing_complete)) deallocate(mask_wing_complete)
+    !if (allocated(Insect%STATE)) deallocate(Insect%STATE)
 
     call load_kine_clean( Insect%kine_wing_l )
     call load_kine_clean( Insect%kine_wing_r )

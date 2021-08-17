@@ -1,0 +1,9 @@
+to allow interactive debugging edit 
+$/etc/sysctl.d/10-ptrace.conf 
+set to back to 1 when finished
+also 
+echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+
+run
+$sudo service procps restart 
+to impliment change
