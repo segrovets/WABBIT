@@ -32,3 +32,8 @@ wabbit
 wabbit-post
 *.avi
 success
+debug/*
+.project
+.cproject
+readme
+
