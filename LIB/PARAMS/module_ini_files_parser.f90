@@ -78,7 +78,7 @@ module module_ini_files_parser
             ncols = size(array,2)
 
             write(*,'(80("-"))')
-            write(*,'("INFO: reading ",i7," lines with ",i7," colums from ",A)') nlines, ncols, file
+            write(*,'("INFO: reading ",i7," lines with ",i7," columns from ",A)') nlines, ncols, file
 
             ! set up format string
             write(ncols_str,'(i3.3)') ncols
@@ -496,7 +496,8 @@ module module_ini_files_parser
             if ( present(defaultvalue) ) then
                 m = size(defaultvalue,1)
                 if (n/=m) then
-                    write(*,*) "error: vector and default value are not of the same length"
+                    write(*,*) "error: vector and default value are not of the same length def,vec",m,n
+                    ! this error can be ignored in some cases
                 endif
             endif
 
@@ -564,7 +565,7 @@ module module_ini_files_parser
             if (n==0) return
 
             if (n/=m) then
-                write(*,*) "error: vector and default value are not of the same length"
+                write(*,*) "error: vector and default value are not of the same length: default,vector",m,n
             endif
 
             write(formatstring,'("(",i2.2,"(g8.3,1x))")') n
@@ -703,7 +704,7 @@ module module_ini_files_parser
 
             m = size(defaultvalue,1)
             if (n/=m) then
-                write(*,*) "error: vector and default value are not of the same length"
+                write(*,*) "error: vector and default value are not of the same length: default,vector",m,n
             endif
 
             write(formatstring,'("(",i2.2,"(L1,1x))")') n

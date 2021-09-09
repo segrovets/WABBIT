@@ -34,11 +34,16 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     type(diptera),intent(inout) :: Insect
     real(kind=rk),intent(inout) :: state(1:Insect%state_array_len)
     real(kind=rk),intent(inout) :: rhs(1:Insect%state_array_len)
-    real(kind=rk) :: m, Jx, Jy, Jz, Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
+    real(kind=rk) :: Jx, Jy, Jz, Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
     real(kind=rk) :: omx,omy,omz, Jxx, Jyy, Jzz
     real(kind=rk), dimension(0:3) :: ep
     real(kind=rk), dimension(1:3) :: ROT, torque_body
     real(kind=rk), dimension(1:3,1:3) :: M_body, M_wing_l
+
+    !for now lets leave the wing stuff here
+    !Defining own paramters explicitly, later can add ini file
+    ! 1DOF system, oscillating in radial direction
+    real(kind=rk) :: m, u
 
     ! initialization
     rhs = 0.d0
@@ -52,6 +57,12 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     Jx = Insect%Jroll_body
     Jy = Insect%Jpitch_body
     Jz = Insect%Jyaw_body
+    !length of pendulum arm
+    !gravity (maybe already here
+    !restorative force
+    !dissapation ** check out friend the review paper 
+    !
+
 
     ! extract rotation (unit) quaternion from state vector, and create the rotation
     ! matrix from it.
@@ -144,6 +155,9 @@ subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
     real(kind=rk), ALLOCATABLE :: array(:,:)
     integer :: mpicode, n_lines, n_cols, n_header, it, n_candidates
     real(kind=rk), dimension(0:3) :: ep
+    integer :: state_length 
+    
+    state_length = Insect%state_array_len + 1
 
     Insect%time = time
     Insect%STATE = 0.d0
@@ -155,18 +169,17 @@ subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
 
     if (resume_backup) then
         ! resuming the rigid solid solver from a backup
-        ! NOTE: in old versions, this read a single *.fsi_bckp file which contained the state vector.
         ! In WABBIT, we write the state vector to *.t file in every time step, and so we look for the
         ! data in this file. As simulations may fail and be resumed from a different time step, we use the
         ! last suitable entry in this file.
         if (root) then
-            write(*,'(A)') "Rigid solid solver is resuming from file: we read Insect%STATE from ./insect_state_vector.t"
+            write(*,'(A)') "Fractal tree solver is resuming from file: we read Insect%STATE from ./insect_state_vector.t"
             write(*,*) "time=", time
 
             call count_lines_in_ascii_file('insect_state_vector.t', n_lines, n_header)
             call count_cols_in_ascii_file('insect_state_vector.t', n_cols, n_header)
 
-            if (n_cols < 21) call abort(202117021, "For some reason insect_state_vector.t contains not enough columns....something is wrong?")
+            if (n_cols < state_length) call abort(202117021, "For some reason insect_state_vector.t contains not enough columns....something is wrong?")
 
             allocate( array(1:n_lines, 1:n_cols) )
             call read_array_from_ascii_file('insect_state_vector.t', array, n_header)
@@ -184,9 +197,9 @@ subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
 
             do it = n_lines, 1, -1
                 if ( abs(array(it,1)-time) <= 1.0e-6 ) then
-                    Insect%STATE = array(it,2:21)
+                    Insect%STATE = array(it,2:state_length)
                     write(*,*) "Found suitable entry in line=", it, " time=", array(it,1)
-                    write(*,'("Insect%STATE=(",20(es15.8,1x),")")')  Insect%STATE
+                    !write(*,'("Insect%STATE=(",25(es15.8,1x),")")')  Insect%STATE 
                     exit
                 endif
             end do
@@ -199,58 +212,9 @@ subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
 
     else ! no backup
 
-        ! free flight solver based on quaternions. the task here is to initialize
-        ! the "attitude" quaternion (Insect%quaternion) from yaw, pitch and roll
-        ! angles. Note that for the free flight solver, this is the last time
-        ! body yaw,pitch,roll are meaningful. from now on, quaternions are used
 
-        ! initialization, these values are read from parameter file
-        Insect%gamma = Insect%yawpitchroll_0(1)
-        Insect%beta  = Insect%yawpitchroll_0(2)
-        Insect%psi   = Insect%yawpitchroll_0(3)
-        Insect%xc_body_g = Insect%x0
-        Insect%vc_body_g = Insect%v0
-        Insect%rot_body_b = 0.d0
-
-        ! create initial value for attitude quaternion
-        yaw   =  Insect%gamma / 2.d0
-        pitch =  Insect%beta  / 2.d0
-        roll  =  Insect%psi   / 2.d0
-        Insect%STATE(7) = cos(roll)*cos(pitch)*cos(yaw) + sin(roll)*sin(pitch)*sin(yaw)
-        Insect%STATE(8) = sin(roll)*cos(pitch)*cos(yaw) - cos(roll)*sin(pitch)*sin(yaw)
-        Insect%STATE(9) = cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*cos(pitch)*sin(yaw)
-        Insect%STATE(10) = cos(roll)*cos(pitch)*sin(yaw) - sin(roll)*sin(pitch)*cos(yaw)
-
-        Insect%STATE(1:3) = Insect%xc_body_g
-        Insect%STATE(4:6) = Insect%vc_body_g
-        Insect%STATE(11:13) = Insect%rot_body_b
-
-        !**********************************
-        !** Wing fsi model               **
-        !**********************************
-        ! if in use, inititalize the wing-fsi solver here. The tasks are similar to the
-        ! free flight solver:
-        ! (a) initialize the quaternion state from the initial values of the wing angles
-        ! (c) initialize angular velocity and acceleration (maybe zero?)
-        ! (d) if applicable, read muscle moment in body system from file
-        if ( Insect%wing_fsi == "yes" ) then
-            ! the intial angles are read from the parameter file. note division by 2 is
-            ! because of the quaternion, it does not divide the desired angle by two.
-            a = deg2rad( Insect%init_alpha_phi_theta(1) ) / 2.d0  ! alpha
-            p = deg2rad( Insect%init_alpha_phi_theta(2) ) / 2.d0  ! phi
-            t = deg2rad( Insect%init_alpha_phi_theta(3) ) / 2.d0  ! theta
-
-            Insect%STATE(14) = cos(a)*cos(t)*cos(p) + sin(a)*sin(t)*sin(p)  ! 1st quaternion component
-            Insect%STATE(15) = cos(a)*cos(t)*sin(p) - sin(a)*cos(p)*sin(t)  ! 2nd quaternion component
-            Insect%STATE(16) =-cos(a)*sin(t)*sin(p) + cos(t)*cos(p)*sin(a)  ! 3rd quaternion component
-            Insect%STATE(17) = cos(a)*cos(p)*sin(t) + sin(a)*cos(t)*sin(p)  ! 4th quaternion component
-
-            Insect%STATE(18) = 0.d0    ! x-component ang. velocity
-            Insect%STATE(19) = 0.d0    ! x-component ang. velocity
-            Insect%STATE(20) = 0.d0    ! x-component ang. velocity
-        endif
     endif ! of backup/no backup if
 
 
-    if(root) write(*,'("Insect%STATE=(",20(es15.8,1x),")")')  Insect%STATE
+    if(root) write(*,'("Insect%STATE=(",25(es15.8,1x),")")')  Insect%STATE
 end subroutine

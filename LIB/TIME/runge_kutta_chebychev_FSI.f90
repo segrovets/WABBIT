@@ -61,7 +61,7 @@ subroutine RungeKuttaChebychev_FSI(time, dt, iteration, params, lgt_block, hvy_b
     endif
 
     if (.not. allocated(Insect%rhs)) then
-        allocate(Insect%rhs(1:Insect%state_array_len, 1:size(hvy_work,6)))
+        allocate(Insect%rhs(1:size(Insect%STATE), 1:size(hvy_work,6)))
     endif
 
     if (s<4) then

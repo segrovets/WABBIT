@@ -32,8 +32,15 @@ wabbit
 wabbit-post
 *.avi
 success
-debug/*
+ddr/*
 .project
 .cproject
 readme
-
+*.png
+.vscode/*
+ddir/*.t
+ddir/*.h5
+ddir/*.dat
+ddir/runtime_control
+ddir/success
+ddir/wabbit

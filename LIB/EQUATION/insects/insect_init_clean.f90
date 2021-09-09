@@ -293,7 +293,8 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
         Insect%state_array_len = 20
     endif
     if (.not. allocated(Insect%STATE)) then
-        allocate(Insect%STATE(1:Insect%state_array_len))
+            write(*,*) "We are allocating Insect state !! From insect_init_clean.f90", Insect%state_array_len
+            allocate(Insect%STATE(1:Insect%state_array_len))
     endif
 
     ! wing inertia tensor (we currently assume two identical forewings and two identical hindwings)
@@ -454,7 +455,7 @@ subroutine insect_clean(Insect)
     if (allocated(wing_thickness_profile)) deallocate ( wing_thickness_profile )
     if (allocated(corrugation_profile)) deallocate ( corrugation_profile )
     if (allocated(mask_wing_complete)) deallocate(mask_wing_complete)
-    !if (allocated(Insect%STATE)) deallocate(Insect%STATE)
+    if (allocated(Insect%STATE)) deallocate(Insect%STATE)
 
     call load_kine_clean( Insect%kine_wing_l )
     call load_kine_clean( Insect%kine_wing_r )

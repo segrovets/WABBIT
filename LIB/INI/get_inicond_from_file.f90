@@ -52,11 +52,11 @@ subroutine get_inicond_from_file(params, lgt_block, hvy_block, hvy_n, lgt_n, tim
     end if
 
     do i = 1, params%dim
-        if (periodic_BC(i).eqv.params%periodic_BC(i)) then
+        if (periodic_BC(i).neqv.params%periodic_BC(i)) then
             if (params%rank==0) write(*,*) "WARNING WARNING WARNING periodic_BC in inifile and HDF5 file are different!"
         endif
 
-        if (symmetry_BC(i).eqv.params%symmetry_BC(i)) then
+        if (symmetry_BC(i).neqv.params%symmetry_BC(i)) then
             if (params%rank==0) write(*,*) "WARNING WARNING WARNING symmetry_BC in inifile and HDF5 file are different!"
         endif
     enddo

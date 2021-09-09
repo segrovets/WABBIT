@@ -54,7 +54,7 @@ directories: ${OBJDIR}
 
 ${OBJDIR}:
 	mkdir -p ${OBJDIR}
-
+	
 #================================================================
 # If the object directory doesn't exist, create it.
 #================================================================

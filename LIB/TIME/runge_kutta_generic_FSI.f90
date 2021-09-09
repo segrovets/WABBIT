@@ -57,7 +57,7 @@ subroutine RungeKuttaGeneric_FSI(time, dt, iteration, params, lgt_block, hvy_blo
     endif
 
     if (.not. allocated(Insect%rhs)) then
-        allocate(Insect%rhs(1:Insect%state_array_len, 1:size(hvy_work,6)))
+        allocate(Insect%rhs(1:size(insect%STATE), 1:size(hvy_work,6)))
     endif
 
     if (.not.allocated(rk_coeffs)) allocate(rk_coeffs(size(params%butcher_tableau,1),size(params%butcher_tableau,2)) )
