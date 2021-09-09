@@ -1,0 +1,8 @@
+#!/bin/sh
+
+make
+cp wabbit ddir/
+cd ddir/
+./exec.sh
+cd ..
+python3 plot_debug.py 
