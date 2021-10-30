@@ -44,3 +44,4 @@ ddir/*.dat
 ddir/runtime_control
 ddir/success
 ddir/wabbit
+doc/latex/*

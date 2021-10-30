@@ -1,6 +1,6 @@
 !-------------------------------------------------------------------------------
 ! This is in INSECT%STATE:
-! I WILL NEED TO REDEFINE LATER
+! This is in INSECT%STATE:
 ! STATE(1) : x-position of body
 ! STATE(2) : y-position of body
 ! STATE(3) : z-position of body
@@ -11,16 +11,21 @@
 ! STATE(8) : 2nd component of body quaternion
 ! STATE(9) : 3rd component of body quaternion
 ! STATE(10) : 4th component of body quaternion
-! STATE(11) : x-angular velocity of body
+! STATE(11) : x-angular velocity of body *not sure if around the body mass center?
 ! STATE(12) : y-angular velocity of body
 ! STATE(13) : z-angular velocity of body
-! STATE(14) : 1st component of left wing quaternion
-! STATE(15) : 2nd component of left wing quaternion
-! STATE(16) : 3rd component of left wing quaternion
-! STATE(17) : 4th component of left wing quaternion
-! STATE(18) : x-angular velocity of left wing
-! STATE(19) : y-angular velocity of left wing
-! STATE(20) : z-angular velocity of left wing
+! STATE(14) : angle x -- around origin
+! STATE(15) : angle y -- around origin
+! STATE(16) : angle z -- around origin
+! STATE(17) : angular velocity -- around origin
+! STATE(18) : angular velocity -- around origin
+! STATE(19) : angular velocity -- around origin
+! STATE(20) : 
+! STATE(21) :
+! STATE(22) :
+! STATE(23) :
+! STATE(24) :
+! STATE(25) : 
 !-------------------------------------------------------------------------------
 ! Insect free flight dynamics.
 ! RHS of the ODE system.
@@ -29,22 +34,21 @@
 subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, Insect)
     implicit none
 
+    ! T0 DO
+    ! check dimensionality
+    ! check i convert back to global frame and if thats necessary or whatever
     integer, intent(in) :: it
     real(kind=rk),intent(in) :: time, force_g(1:3), torque_g(1:3)
     type(diptera),intent(inout) :: Insect
     real(kind=rk),intent(inout) :: state(1:Insect%state_array_len)
     real(kind=rk),intent(inout) :: rhs(1:Insect%state_array_len)
-    real(kind=rk) :: Jx, Jy, Jz, Jxy, s, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
-    real(kind=rk) :: omx,omy,omz, Jxx, Jyy, Jzz
+    real(kind=rk) :: Jx, Jy,Jz,Jxy, Tx, Ty, Tz, T_wing_g(1:3), T_wing_w(1:3)
+    real(kind=rk) :: omx,omy,omz, Jxx,Jyy,Jzz
     real(kind=rk), dimension(0:3) :: ep
     real(kind=rk), dimension(1:3) :: ROT, torque_body
     real(kind=rk), dimension(1:3,1:3) :: M_body, M_wing_l
-
-    !for now lets leave the wing stuff here
-    !Defining own paramters explicitly, later can add ini file
     ! 1DOF system, oscillating in radial direction
-    real(kind=rk) :: m, u
-
+    real(kind=rk) :: m, l, a, b, s, res_coef
     ! initialization
     rhs = 0.d0
 
@@ -54,15 +58,12 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
 
     ! copy some shortcuts (this is easier to code)
     m  = Insect%mass
+    ! l is length of pendulum arm
+    l =  8
+    
     Jx = Insect%Jroll_body
     Jy = Insect%Jpitch_body
     Jz = Insect%Jyaw_body
-    !length of pendulum arm
-    !gravity (maybe already here
-    !restorative force
-    !dissapation ** check out friend the review paper 
-    !
-
 
     ! extract rotation (unit) quaternion from state vector, and create the rotation
     ! matrix from it.
@@ -83,37 +84,24 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
         s = 1.d0
     endif
 
-    !-----------------------------------------------------------------------------
-    ! Integrate the 13 equations of motion (written in quaternion formulation)
-    ! The underlying eqns can be found in
-    ! M. Maeda et al. (2012) A free-flight Simulation of Insect flapping flight
-    ! J. Aero Aqua Bio-Mech(1):1,71-79
-    !-----------------------------------------------------------------------------
-    ! To avoid confusion with the famous unsteady corrections, the actual translation eqn reads:
-    !   rho_s*V*u_dot = (rho_s-rho_f)*V*g + F_fluid
-    ! but the latter term is
-    !   rho_s*V*u_dot = (rho_s-rho_f)*V*g + Integral(Penal) + V*rho_f*u_dot
-    ! so we can put this, as uhlmann does, on the right hand side:
-    !   (rho_s-rho_f)*V*u_dot = (rho_s-rho_f)*V*g + Integral(Penal)
-    ! We have thus two options regarding this, either
-    !   m_corrected * u_dot = m_corrected * g + Integral(penal)       [implicit unst corrections]
-    ! or
-    !   m * u_dot = m_corrected * g + Integral(penal) + force_unst    [explicit unst corrections]
-    ! the last equation can also be rewritten using twice the same m
-    !   m * u_dot = m * g_corrected + Integral(penal) + force_unst    [explicit unst corrections]
-    ! where g_corrected = (rho_s-rho_f)/rho_s * g
-    !-----------------------------------------------------------------------------
-    ! For the torque, the unsteady corrections are explicitly taken into account
-    ! above, thus cal_unst=1; is required in the parameter file.
-    !-----------------------------------------------------------------------------
+    res_coef = 10
+    secondquadrant: if (Insect%STATE(1)<=0) then
+        a = -1 ! restorative force coefficient
+    else !first quadrant or zero
+        a = 1 !swinging to positive direction force is negtive      
+    endif secondquadrant
+    b = 0.5_rk
+    !Insect%STATE(3) = global_position(3) + l*sin(thetaX)
+
     ! integrate coordinates (dx/dt = vx) Note: this is in global reference frame
-    rhs(1) = Insect%STATE(4)
-    rhs(2) = Insect%STATE(5)
-    rhs(3) = Insect%STATE(6)
+    rhs(1) = Insect%STATE(4) ! velocity x
+    rhs(2) = Insect%STATE(5) !velocity y
+    rhs(3) = -(Insect%STATE(1)-Insect%x0(1))/SQRT(l**2 - (Insect%STATE(1) - Insect%x0(1))**2) ! velocity z
     ! integrate velocities (dvx/dt = F) Note: this is in global reference frame
-    rhs(4) = s*force_g(1)/m + Insect%gravity_x
-    rhs(5) = s*force_g(2)/m + Insect%gravity_y
-    rhs(6) = s*force_g(3)/m + Insect%gravity
+    !         drag                  gravity             dissipation           restorative
+    rhs(4) = s*force_g(1)/(m*l) + Insect%gravity_x + b*Insect%STATE(4)/(l*m) + a*re_coef*((pi/2) - asin(Insect%STATE(3)/l))*Insect%STATE(3)/l
+    rhs(5) = s*force_g(2)/(m*l) + Insect%gravity_y
+    rhs(6) = s*force_g(3)/(m*l) + Insect%gravity   - b*Insect%STATE(6)/(l*m) - a*re_coef*((pi/2) - asin(Insect%STATE(3)/l))*SQRT(1 - Insect%STATE(3)**2/l**2)
     ! integrate quaternion attitudes
     rhs(7)  = 0.5d0*(-ep(1)*ROT(1)-ep(2)*ROT(2)-ep(3)*ROT(3))
     rhs(8)  = 0.5d0*(+ep(0)*ROT(1)-ep(3)*ROT(2)+ep(2)*ROT(3))
@@ -140,7 +128,6 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     else
         call append_t_file('forces_rk.t', (/time, rhs(3), rhs(6), force_g(3)/))
     endif
-
 end subroutine
 
 
@@ -212,6 +199,59 @@ subroutine rigid_solid_init_fractaltree(time, Insect, resume_backup)
 
     else ! no backup
 
+        ! free flight solver based on quaternions. the task here is to initialize
+        ! the "attitude" quaternion (Insect%quaternion) from yaw, pitch and roll
+        ! angles. Note that for the free flight solver, this is the last time
+        ! body yaw,pitch,roll are meaningful. from now on, quaternions are used
+
+        ! initialization, these values are read from parameter file
+        Insect%gamma = Insect%yawpitchroll_0(1)
+        Insect%beta  = Insect%yawpitchroll_0(2)
+        Insect%psi   = Insect%yawpitchroll_0(3)
+        Insect%xc_body_g = Insect%x0
+        Insect%vc_body_g = Insect%v0
+        Insect%rot_body_b = 0.d0
+
+        ! create initial value for attitude quaternion
+        yaw   =  Insect%gamma / 2.d0
+        pitch =  Insect%beta  / 2.d0
+        roll  =  Insect%psi   / 2.d0
+        Insect%STATE(7) = cos(roll)*cos(pitch)*cos(yaw) + sin(roll)*sin(pitch)*sin(yaw)
+        Insect%STATE(8) = sin(roll)*cos(pitch)*cos(yaw) - cos(roll)*sin(pitch)*sin(yaw)
+        Insect%STATE(9) = cos(roll)*sin(pitch)*cos(yaw) + sin(roll)*cos(pitch)*sin(yaw)
+        Insect%STATE(10) = cos(roll)*cos(pitch)*sin(yaw) - sin(roll)*sin(pitch)*cos(yaw)
+
+        Insect%STATE(1:3) = Insect%xc_body_g
+        Insect%STATE(4:6) = Insect%vc_body_g
+        Insect%STATE(11:13) = Insect%rot_body_b
+
+        !**********************************
+        !** Wing fsi model               **
+        !**********************************
+        ! if in use, inititalize the wing-fsi solver here. The tasks are similar to the
+        ! free flight solver:
+        ! (a) initialize the quaternion state from the initial values of the wing angles
+        ! (c) initialize angular velocity and acceleration (maybe zero?)
+        ! (d) if applicable, read muscle moment in body system from file
+        if ( Insect%wing_fsi == "yes" ) then
+            ! the intial angles are read from the parameter file. note division by 2 is
+            ! because of the quaternion, it does not divide the desired angle by two.
+            a = deg2rad( Insect%init_alpha_phi_theta(1) ) / 2.d0  ! alpha
+            p = deg2rad( Insect%init_alpha_phi_theta(2) ) / 2.d0  ! phi
+            t = deg2rad( Insect%init_alpha_phi_theta(3) ) / 2.d0  ! theta
+
+            Insect%STATE(14) = cos(a)*cos(t)*cos(p) + sin(a)*sin(t)*sin(p)  ! 1st quaternion component
+            Insect%STATE(15) = cos(a)*cos(t)*sin(p) - sin(a)*cos(p)*sin(t)  ! 2nd quaternion component
+            Insect%STATE(16) =-cos(a)*sin(t)*sin(p) + cos(t)*cos(p)*sin(a)  ! 3rd quaternion component
+            Insect%STATE(17) = cos(a)*cos(p)*sin(t) + sin(a)*cos(t)*sin(p)  ! 4th quaternion component
+
+            Insect%STATE(18) = 0.d0    ! x-component ang. velocity
+            Insect%STATE(19) = 0.d0    ! y-component ang. velocity
+            Insect%STATE(20) = 0.d0    ! z-component ang. velocity
+        endif
+
+
+        
 
     endif ! of backup/no backup if
 

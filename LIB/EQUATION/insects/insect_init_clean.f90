@@ -292,6 +292,7 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
     else
         Insect%state_array_len = 20
     endif
+    
     if (.not. allocated(Insect%STATE)) then
             write(*,*) "We are allocating Insect state !! From insect_init_clean.f90", Insect%state_array_len
             allocate(Insect%STATE(1:Insect%state_array_len))
