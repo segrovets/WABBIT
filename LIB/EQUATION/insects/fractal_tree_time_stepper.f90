@@ -99,9 +99,9 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     rhs(3) = -(Insect%STATE(1)-Insect%x0(1))/SQRT(l**2 - (Insect%STATE(1) - Insect%x0(1))**2) ! velocity z
     ! integrate velocities (dvx/dt = F) Note: this is in global reference frame
     !         drag                  gravity             dissipation           restorative
-    rhs(4) = s*force_g(1)/(m*l) + Insect%gravity_x + b*Insect%STATE(4)*Insect%STATE(3)/((l**2)*m) + a*res_coef*((pi/2) - asin(Insect%STATE(3)/l))*Insect%STATE(3)/l
+    rhs(4) = s*force_g(1)/(m*l) + Insect%gravity_x + b*Insect%STATE(4) + a*res_coef*((pi/2) - asin(Insect%STATE(3)/l))*Insect%STATE(3)/l
     rhs(5) = s*force_g(2)/(m*l) + Insect%gravity_y
-    rhs(6) = s*force_g(3)/(m*l) + Insect%gravity   - b*Insect%STATE(6)*SQRT(1 - Insect%STATE(3)**2/l**2)/(l*m) - a*res_coef*((pi/2) - asin(Insect%STATE(3)/l))*SQRT(1 - Insect%STATE(3)**2/l**2)
+    rhs(6) = s*force_g(3)/(m*l) + Insect%gravity - b*Insect%STATE(6) - a*res_coef*((pi/2) - asin(Insect%STATE(3)/l))*SQRT(1 - Insect%STATE(3)**2/l**2)
     ! integrate quaternion attitudes
     rhs(7)  = 0.5d0*(-ep(1)*ROT(1)-ep(2)*ROT(2)-ep(3)*ROT(3))
     rhs(8)  = 0.5d0*(+ep(0)*ROT(1)-ep(3)*ROT(2)+ep(2)*ROT(3))
