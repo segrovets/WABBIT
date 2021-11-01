@@ -59,7 +59,7 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     ! copy some shortcuts (this is easier to code)
     m  = Insect%mass
     ! l is length of pendulum arm
-    l =  8
+    l =  8_rk
     
     Jx = Insect%Jroll_body
     Jy = Insect%Jpitch_body
@@ -90,8 +90,9 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     else !first quadrant or zero
         a = 1 !swinging to positive direction force is negtive      
     endif secondquadrant
-    b = 0.5_rk
+    b = - 0.01_rk
     !Insect%STATE(3) = global_position(3) + l*sin(thetaX)
+    res_coef = m*9_rk
 
     ! integrate coordinates (dx/dt = vx) Note: this is in global reference frame
     rhs(1) = Insect%STATE(4) ! velocity x
