@@ -91,11 +91,7 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     endif secondquadrant
     b = Insect%b_coefficient
     !Insect%STATE(3) = global_position(3) + l*sin(thetaX)
-<<<<<<< HEAD
     res_coef = m*Insect%restorative_force_coefficient
-=======
-    res_coef = m*10_rk
->>>>>>> refs/remotes/origin/master
 
     ! integrate coordinates (dx/dt = vx) Note: this is in global reference frame
     rhs(1) = Insect%STATE(4) ! velocity x
