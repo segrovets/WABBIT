@@ -84,15 +84,14 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
         s = 1.d0
     endif
 
-    res_coef = 10
     secondquadrant: if (Insect%STATE(1)<=0) then
         a = -1 ! restorative force coefficient
     else !first quadrant or zero
         a = 1 !swinging to positive direction force is negtive      
     endif secondquadrant
-    b = - 0.01_rk
+    b = Insect%b_coefficient
     !Insect%STATE(3) = global_position(3) + l*sin(thetaX)
-    res_coef = m*9_rk
+    res_coef = m*Insect%restorative_force_coefficient
 
     ! integrate coordinates (dx/dt = vx) Note: this is in global reference frame
     rhs(1) = Insect%STATE(4) ! velocity x

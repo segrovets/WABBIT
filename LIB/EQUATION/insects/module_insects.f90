@@ -239,6 +239,7 @@ module module_insects
     real(kind=rk) :: fractal_tree_scaling = 1.0_rk
     logical :: fractal_tree_motion = .false.
     integer :: state_array_len = 20
+    real(kind=rk) :: restorative_force_coefficient=0.d0, b_coefficient = 0.d0
 
     !--------------------------------------------------------------
     ! Wing kinematics
@@ -441,7 +442,7 @@ contains
 
       if (first_call) then
           ! print some important numbers, routine exectuted only once during a simulation
-      !    call print_insect_reynolds_numbers( Insect ) ! ERROR: this can only be called after wing shape initialization
+          ! call print_insect_reynolds_numbers( Insect ) ! ERROR: this can only be called after wing shape initialization
           first_call = .false.
       endif
 
