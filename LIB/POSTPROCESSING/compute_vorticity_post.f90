@@ -14,7 +14,7 @@ subroutine compute_vorticity_post(params)
 
     !> parameter struct
     type (type_params), intent(inout)  :: params
-    character(len=cshort)                  :: file_ux, file_uy, file_uz, operator
+    character(len=cshort)              :: file_ux, file_uy, file_uz, operator
     real(kind=rk)                      :: time
     integer(kind=ik)                   :: iteration, k, lgt_id, lgt_n, hvy_n, tc_length, g
     integer(kind=ik), dimension(3)     :: Bs
@@ -25,7 +25,7 @@ subroutine compute_vorticity_post(params)
     integer(kind=ik), allocatable      :: hvy_neighbor(:,:)
     integer(kind=ik), allocatable      :: lgt_active(:), hvy_active(:)
     integer(kind=tsize), allocatable   :: lgt_sortednumlist(:,:)
-    character(len=cshort)                  :: fname
+    character(len=cshort)              :: fname
     real(kind=rk), dimension(3)        :: dx, x0
     integer(hid_t)                     :: file_id
     real(kind=rk), dimension(3)        :: domain
@@ -87,7 +87,7 @@ subroutine compute_vorticity_post(params)
     end if
 
     ! decide which order for discretization and predictor is used. Note predictor
-    ! is used in ghost nodes sync'ing
+    ! is used in ghost nodes syncing
     if (order == "4") then
         params%order_discretization = "FD_4th_central_optimized"
         params%order_predictor = "multiresolution_4th"

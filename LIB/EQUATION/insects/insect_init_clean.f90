@@ -286,7 +286,7 @@ subroutine insect_init(time, fname_ini, Insect, resume_backup, fname_backup, box
 
     ! section for new fractal_tree_time_stepper
     call read_param_mpi(PARAMS, "Insects", "fractal_tree_motion", Insect%fractal_tree_motion, .false.)
-    call read_param_mpi(PARAMS, "Insects", "restorative_force_coefficient", Insect%restorative_force_coefficient, 1.d0)
+    call read_param_mpi(PARAMS, "Insects", "restorative_force_coefficient", Insect%restorative_force_coefficient, 0.d0)
     call read_param_mpi(PARAMS, "Insects", "b_coefficient", Insect%b_coefficient, 0.d0)
 
 

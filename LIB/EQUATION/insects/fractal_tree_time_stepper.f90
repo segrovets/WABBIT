@@ -59,7 +59,7 @@ subroutine rigid_solid_rhs_fractaltree(time, it, state, rhs, force_g, torque_g, 
     ! copy some shortcuts (this is easier to code)
     m  = Insect%mass
     ! l is length of pendulum arm
-    l =  3_rk
+    l =  8_rk
     
     Jx = Insect%Jroll_body
     Jy = Insect%Jpitch_body
