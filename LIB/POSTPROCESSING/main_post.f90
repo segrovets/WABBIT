@@ -13,8 +13,8 @@ program main_post
     integer(kind=ik)                    :: rank                   ! process rank
     integer(kind=ik)                    :: number_procs           ! number of processes
     type (type_params)                  :: params
-    character(len=cshort)                   :: mode
-    character(len=cshort)                   :: filename, key1, key2
+    character(len=cshort)               :: mode
+    character(len=cshort)               :: filename, key1, key2
     real(kind=rk)                       :: elapsed_time
 
     call MPI_Init(ierr)                                           ! init mpi
@@ -45,6 +45,9 @@ program main_post
     if (rank==0) write(*,'("Starting postprocessing in ", a20, "mode")') mode
 
     select case(mode)
+    case ("--energy-dissipation")
+        call post_turbulence(params)
+
     case ("--extract-slice")
         call post_extract_slice(params)
 
@@ -118,27 +121,29 @@ program main_post
     case ("--flusi-to-wabbit")
         call flusi_to_wabbit(params)
 
-  case ("--POD")
-    call post_POD(params)
+    case ("--POD")
+        call post_POD(params)
 
-case ("--filter")
-   call post_filtertest(params)
+    case ("--filter")
+        call post_filtertest(params)
 
-  case ("--POD-reconstruct")
-    call post_reconstruct(params)
+    case ("--POD-reconstruct")
+        call post_reconstruct(params)
 
-  case ("--POD-error")
-    call post_PODerror(params)
+    case ("--POD-error")
+        call post_PODerror(params)
 
-  case ("--POD-time")
-    call post_timecoef_POD(params)
+    case ("--POD-time")
+        call post_timecoef_POD(params)
 
-  case ("--generate_forest")
-    call post_generate_forest(params)
+    case ("--generate_forest")
+        call post_generate_forest(params)
+    
     case default
 
         if (params%rank==0) then
             write(*,*) "Available Postprocessing tools are:"
+            write(*,*) "--energy-dissipation"
             write(*,*) "--sparse-to-dense"
             write(*,*) "--dense-to-sparse"
             write(*,*) "--mean"
