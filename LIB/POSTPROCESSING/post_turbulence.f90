@@ -17,11 +17,15 @@ subroutine post_turbulence(params)
     !for use of parameters from ini file
     use module_ini_files_parser_mpi
 
+    !for integral calculation
+    use mpi
+
+
     implicit none
 
     !> parameter struct
     type (type_params), intent(inout)      :: params
-    character(len=cshort)                  :: file_ux, file_uy, file_uz, operator, ini_file
+    character(len=cshort)                  :: file_ux, file_uy, file_uz, operator, ini_file, fname, fname_out
     real(kind=rk)                          :: time
     integer(kind=ik)                       :: iteration, k, lgt_id, lgt_n, hvy_n, tc_length, g
     integer(kind=ik), dimension(3)         :: Bs
@@ -32,7 +36,6 @@ subroutine post_turbulence(params)
     integer(kind=ik), allocatable      :: hvy_neighbor(:,:)
     integer(kind=ik), allocatable      :: lgt_active(:), hvy_active(:)
     integer(kind=tsize), allocatable   :: lgt_sortednumlist(:,:)
-    character(len=cshort)              :: fname
     real(kind=rk), dimension(3)        :: dx, x0
     integer(hid_t)                     :: file_id
     real(kind=rk), dimension(3)        :: domain
@@ -43,6 +46,10 @@ subroutine post_turbulence(params)
     integer(kind=ik)                   :: N_mask_components = 0_ik
     integer(kind=ik)                   :: N_sponge_cells = 1_ik
     type(inifile)                      :: FILE
+    !----------- inclusions for integral calc --------------------------------------------------------------
+    real(kind=rk)    :: meani, inti, meanl
+    real(kind=ik)    :: llim_i, llim_j, llim_k, ulim_i, ulim_j, ulim_k ! upper and lower limits for integral 
+    real(kind=ik)    :: mpicode
     !-----------------------------------------------------------------------------------------------------
     ! get values from command line (filename and level for interpolation)
     call get_command_argument(1, operator)
@@ -57,10 +64,11 @@ subroutine post_turbulence(params)
             write(*,*) " in predefined files."
             write(*,*) "-----------------------------------------------------------"
             write(*,*) " --energy-dissipation"
-            write(*,*) "./wabbit-post --energy-dissipation source_ux.h5 source_uy.h5 [source_uz.h5] [ORDER] [Re]"
+            write(*,*) "./wabbit-post --energy-dissipation source_ux.h5 source_uy.h5 [source_uz.h5] ORDER PARAM.ini"
             write(*,*) " Computes (3D) energy dissipation, saves in " !or 1 (2D) vorticity component
             write(*,*) " diss_*.h5"
             write(*,*) " order = 2 or 4"
+            write(*,*) " integral saved in diss_*.key"
             write(*,*) "-----------------------------------------------------------"
         end if
         return
@@ -128,8 +136,18 @@ subroutine post_turbulence(params)
     Bs = params%Bs
     g  = params%n_ghosts
 
+    llim_i = g+1
+    llim_j = g+1
+    ulim_i = Bs(1)+g-1
+    ulim_j = Bs(2)+g-1
+    if (params%dim == 3) then
+        llim_k = g+1
+        ulim_k = Bs(3)+g-1
+    endif
+
     ! no refinement is made in this postprocessing tool; we therefore allocate about
     ! the number of blocks in the file (and not much more than that)
+    ! params%number_blocks = (params%dim**2) * (lgt_n/params%number_procs)
     params%number_blocks = ceiling(  real(lgt_n)/real(params%number_procs) )
 
     nwork = 1
@@ -160,6 +178,11 @@ subroutine post_turbulence(params)
 
     call sync_ghosts( params, lgt_block, hvy_block, hvy_neighbor, hvy_active, hvy_n )
 
+    !! distribute blocks over mpi processes
+
+    ! set initiate meanl
+    meanl = 0.0_rk
+
     ! calculate energy dissipation
     do k = 1, hvy_n
         call hvy2lgt(lgt_id, hvy_active(k), params%rank, params%number_blocks)
@@ -178,19 +201,48 @@ subroutine post_turbulence(params)
             dx, Bs, g, params%order_discretization, hvy_tmp(:,:,:,1,hvy_active(k)),&
             domain_n, N_sponge_cells,&
             nu, params%rank)
+
+            meanl  = meanl + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+            if (params%rank == 0) write(*,*) meanl
+
+
+           ! if (params%dim == 3) then
+           !     meanl = meanl + sum( hvy_temp(llim_i:ulim_i, llim_j:ulim_j, llim_k:ulim_k, 1, hvy_active(k)))*dx(1)*dx(2)*dx(3)
+          !  else
+          !      meanl = meanl + sum( hvy_temp(llim_i:ulim_i, llim_j:ulim_j, 1, 1, hvy_active(k)))*dx(1)*dx(2)
+          !  endif
         else
             call abort(1812011, "operator is not --energy-dissipation")
-
         endif
     end do
+
+    !write(*,*) "mpi code is" , mpicode 
+  !  call MPI_REDUCE(meanl, meani, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, WABBIT_COMM, mpicode)
+
+    if (params%dim == 3) then
+        meani = meani / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
+        inti = meani*product(domain)
+    else
+        meani = meani / (params%domain_size(1)*params%domain_size(2))
+        inti = meani*product(domain(1:2))
+    endif
 
     if (operator == "--energy-dissipation") then
         write( fname,'(a, "_", i12.12, ".h5")') 'diss', nint(time * 1.0e6_rk)
 
         call write_field(fname, time, iteration, 1, params, lgt_block, hvy_tmp, lgt_active, lgt_n, hvy_n, hvy_active )
         !call append_t_file('dissipation.t', (/time*1.0e6_rk, dissipation_sum /))
-
+        if (params%rank == 0) then
+            write(*,*) "Computed mean value is: ", meani
+            write(*,*) "Computed integral value is: ", inti
+    
+            ! write volume integral to disk
+            write( fname_out,'(a, "_", i12.12, ".key")') 'diss', nint(time * 1.0e6_rk)
+            open(14,file=fname_out, status='replace')
+            write(14,*) time, inti
+            close(14)
+        endif
     endif
 
-    call close_all_t_files()
+   
 end subroutine post_turbulence

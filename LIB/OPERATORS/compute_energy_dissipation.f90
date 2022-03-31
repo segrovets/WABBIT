@@ -103,15 +103,15 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
             ! Note: a(0) does NOT appear (it is zero...)
             do ix = g+1, Bs(1)+g
                 !!!!!!!!!> check if in sponge layer, to skip
-                if ((domain_n(1) > 0 .and. ix >= mxx) .or. (domain_n(1) < 0 .and. ix <= mnx)) cycle
+                !if ((domain_n(1) > 0 .and. ix >= mxx) .or. (domain_n(1) < 0 .and. ix <= mnx)) cycle
                 !!!!!!!!!
                 do iy = g+1, Bs(2)+g
                     !!!!!!!!!> check if in sponge layer, to skip
-                    if ((domain_n(2) > 0 .and. iy >= mxy) .or. (domain_n(2) < 0 .and. iy <= mny)) cycle
+                 !   if ((domain_n(2) > 0 .and. iy >= mxy) .or. (domain_n(2) < 0 .and. iy <= mny)) cycle
                     !!!!!!!!!!
                     do iz = g+1, Bs(3)+g
                         !!!!!!!!!> check if in sponge layer, to skip
-                        if ((domain_n(3) > 0 .and. iz >= mxz) .or. (domain_n(3) < 0 .and. iz <= mnz)) cycle
+                     !   if ((domain_n(3) > 0 .and. iz >= mxz) .or. (domain_n(3) < 0 .and. iz <= mnz)) cycle
                         !!!!!!!!
                         
                         u_dx = (a(-3)*u(ix-3,iy,iz) + a(-2)*u(ix-2,iy,iz) &
