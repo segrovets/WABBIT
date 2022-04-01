@@ -48,8 +48,8 @@ subroutine post_turbulence(params)
     type(inifile)                      :: FILE
     !----------- inclusions for integral calc --------------------------------------------------------------
     real(kind=rk)    :: meani, inti, meanl
-    real(kind=ik)    :: llim_i, llim_j, llim_k, ulim_i, ulim_j, ulim_k ! upper and lower limits for integral 
-    real(kind=ik)    :: mpicode
+    integer(kind=ik)    :: llim_i, llim_j, llim_k, ulim_i, ulim_j, ulim_k ! upper and lower limits for integral 
+    integer(kind=ik)    :: mpicode 
     !-----------------------------------------------------------------------------------------------------
     ! get values from command line (filename and level for interpolation)
     call get_command_argument(1, operator)
@@ -202,22 +202,21 @@ subroutine post_turbulence(params)
             domain_n, N_sponge_cells,&
             nu, params%rank)
 
-            meanl  = meanl + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
-            if (params%rank == 0) write(*,*) meanl
+           ! meanl  = meanl + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+            !if (params%rank == 0) write(*,*) meanl
 
 
-           ! if (params%dim == 3) then
-           !     meanl = meanl + sum( hvy_temp(llim_i:ulim_i, llim_j:ulim_j, llim_k:ulim_k, 1, hvy_active(k)))*dx(1)*dx(2)*dx(3)
-          !  else
-          !      meanl = meanl + sum( hvy_temp(llim_i:ulim_i, llim_j:ulim_j, 1, 1, hvy_active(k)))*dx(1)*dx(2)
-          !  endif
+            if (params%dim == 3) then
+                meanl = meanl + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+            else
+                meanl = meanl + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k)))*dx(1)*dx(2)
+            endif
         else
             call abort(1812011, "operator is not --energy-dissipation")
         endif
     end do
 
-    !write(*,*) "mpi code is" , mpicode 
-  !  call MPI_REDUCE(meanl, meani, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, WABBIT_COMM, mpicode)
+    call MPI_REDUCE(meanl, meani, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, WABBIT_COMM, mpicode)
 
     if (params%dim == 3) then
         meani = meani / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
