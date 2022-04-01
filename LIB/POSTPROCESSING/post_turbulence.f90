@@ -226,7 +226,7 @@ subroutine post_turbulence(params)
 
     if (params%dim == 3) then
         mean_total = mean_total / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
-        if (params%rank == 0) write(*,*) domain
+        !if (params%rank == 0) write(*,*) domain
         int_total = mean_total*product(domain)
     else
         mean_total = mean_total / (params%domain_size(1)*params%domain_size(2))

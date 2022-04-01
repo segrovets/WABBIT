@@ -1,7 +1,6 @@
 !> \brief compute energy dissipation for time step t (for saving it on disk)
 ! ********************************************************************************************
-subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissipation, &
-                                                            domain_n, N_sponge_cells , nu, rank)
+subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissipation,  nu, rank)
     use module_precision
 
     implicit none
@@ -14,8 +13,6 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
     character(len=*), intent(in)                   :: discretization
     integer(kind=ik), intent(in)                   :: g                         !> grid parameters
     integer(kind=ik), dimension(3), intent(in)     :: Bs
-    integer(kind=ik), intent(in)                   :: N_sponge_cells 
-    integer(kind=2), intent(in)                    :: domain_n(1:3)
 
     !> derivatives
     real(kind=rk)                                  :: u_dx, u_dy, u_dz, v_dx, v_dy, v_dz, w_dx, w_dy, w_dz
@@ -35,16 +32,8 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
     dx_inv = 1.0_rk / dx(1)
     dy_inv = 1.0_rk / dx(2)
 
-    mxx =  Bs(1) + g - N_sponge_cells ! max cell index
-    mnx =  g + 1 + N_sponge_cells     ! min cell index
-    mxy =  Bs(2) + g - N_sponge_cells
-    mny =  mnx
-
     if (size(u,3)>2) then ! 3D case
         dz_inv = 1.0_rk / dx(3)
-
-        mxz = Bs(3) + g - N_sponge_cells
-        mnz = mnx
 
         select case(discretization)
         case("FD_2nd_central")
@@ -102,18 +91,9 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
         case("FD_4th_central_optimized")
             ! Note: a(0) does NOT appear (it is zero...)
             do ix = g+1, Bs(1)+g
-                !!!!!!!!!> check if in sponge layer, to skip
-                !if ((domain_n(1) > 0 .and. ix >= mxx) .or. (domain_n(1) < 0 .and. ix <= mnx)) cycle
-                !!!!!!!!!
                 do iy = g+1, Bs(2)+g
-                    !!!!!!!!!> check if in sponge layer, to skip
-                 !   if ((domain_n(2) > 0 .and. iy >= mxy) .or. (domain_n(2) < 0 .and. iy <= mny)) cycle
-                    !!!!!!!!!!
                     do iz = g+1, Bs(3)+g
-                        !!!!!!!!!> check if in sponge layer, to skip
-                     !   if ((domain_n(3) > 0 .and. iz >= mxz) .or. (domain_n(3) < 0 .and. iz <= mnz)) cycle
-                        !!!!!!!!
-                        
+
                         u_dx = (a(-3)*u(ix-3,iy,iz) + a(-2)*u(ix-2,iy,iz) &
                         + a(-1)*u(ix-1,iy,iz) + a(+1)*u(ix+1,iy,iz) + a(+2)*u(ix+2,iy,iz) &
                         + a(+3)*u(ix+3,iy,iz))*dx_inv
