@@ -47,7 +47,7 @@ subroutine post_turbulence(params)
     integer(kind=ik)                   :: N_sponge_cells = 1_ik
     type(inifile)                      :: FILE
     !----------- inclusions for integral calc --------------------------------------------------------------
-    real(kind=rk)    :: meani, inti, meanl
+    real(kind=rk)    :: meanl, intl, mean_total, int_total
     integer(kind=ik)    :: llim_i, llim_j, llim_k, ulim_i, ulim_j, ulim_k ! upper and lower limits for integral 
     integer(kind=ik)    :: mpicode 
     !-----------------------------------------------------------------------------------------------------
@@ -199,15 +199,21 @@ subroutine post_turbulence(params)
             call compute_energy_dissipation( hvy_block(:,:,:,1,hvy_active(k)), &
             hvy_block(:,:,:,2,hvy_active(k)), hvy_block(:,:,:,3,hvy_active(k)),&
             dx, Bs, g, params%order_discretization, hvy_tmp(:,:,:,1,hvy_active(k)),&
-            domain_n, N_sponge_cells,&
             nu, params%rank)
 
-           ! meanl  = meanl + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
-            !if (params%rank == 0) write(*,*) meanl
-
+            ! if block is on flow boundary we skip N cells from the edge to avoid sponge layer
+            if (domain_n(1) > 0) ulim_i = Bs(1)+g-1-N_sponge_cells
+            if (domain_n(1) < 0) llim_i = g+1+N_sponge_cells
+            if (domain_n(2) > 0) ulim_j = Bs(2)+g-1-N_sponge_cells
+            if (domain_n(2) < 0) llim_j = g+1+N_sponge_cells
+            if (params%dim == 3) then
+                if (domain_n(3) > 0) ulim_k = Bs(3)+g-1-N_sponge_cells
+                if (domain_n(3) < 0) llim_k = g+1+N_sponge_cells
+            endif
 
             if (params%dim == 3) then
-                meanl = meanl + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+                !meanl = meanl + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+                meanl = meanl + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
             else
                 meanl = meanl + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k)))*dx(1)*dx(2)
             endif
@@ -216,14 +222,15 @@ subroutine post_turbulence(params)
         endif
     end do
 
-    call MPI_REDUCE(meanl, meani, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, WABBIT_COMM, mpicode)
+    call MPI_REDUCE(meanl, mean_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, WABBIT_COMM, mpicode)
 
     if (params%dim == 3) then
-        meani = meani / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
-        inti = meani*product(domain)
+        mean_total = mean_total / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
+        if (params%rank == 0) write(*,*) domain
+        int_total = mean_total*product(domain)
     else
-        meani = meani / (params%domain_size(1)*params%domain_size(2))
-        inti = meani*product(domain(1:2))
+        mean_total = mean_total / (params%domain_size(1)*params%domain_size(2))
+        int_total = mean_total*product(domain(1:2))
     endif
 
     if (operator == "--energy-dissipation") then
@@ -232,13 +239,13 @@ subroutine post_turbulence(params)
         call write_field(fname, time, iteration, 1, params, lgt_block, hvy_tmp, lgt_active, lgt_n, hvy_n, hvy_active )
         !call append_t_file('dissipation.t', (/time*1.0e6_rk, dissipation_sum /))
         if (params%rank == 0) then
-            write(*,*) "Computed mean value is: ", meani
-            write(*,*) "Computed integral value is: ", inti
+            write(*,*) "Computed mean value is: ", mean_total
+            write(*,*) "Computed integral value is: ", int_total
     
             ! write volume integral to disk
             write( fname_out,'(a, "_", i12.12, ".key")') 'diss', nint(time * 1.0e6_rk)
             open(14,file=fname_out, status='replace')
-            write(14,*) time, inti
+            write(14,*) time, int_total
             close(14)
         endif
     endif
