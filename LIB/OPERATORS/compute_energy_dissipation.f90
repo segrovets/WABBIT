@@ -18,7 +18,7 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
     real(kind=rk)                                  :: u_dx, u_dy, u_dz, v_dx, v_dy, v_dz, w_dx, w_dy, w_dz
     real(kind=rk)                                  :: dx_inv, dy_inv, dz_inv   !> inverse of dx, dy, dz, re
     integer(kind=ik)                               :: ix, iy, iz                ! loop variables
-    integer(kind=ik)                               :: mxx, mxy, mxz, mnx, mny, mnz, rank     !> sponge lims in # cells
+    integer(kind=ik)                               :: rank     !> fort debugging
 
     ! coefficients for Tam&Webb (4th order 1st derivative)
     real(kind=rk), parameter :: a(-3:3) = (/-0.02651995_rk, +0.18941314_rk, -0.79926643_rk, 0.0_rk, 0.79926643_rk, -0.18941314_rk, &
