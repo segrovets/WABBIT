@@ -216,7 +216,7 @@ subroutine post_turbulence(params)
 
             if (params%dim == 3) then
                 !int_block = int_block + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
-                int_block = int_block + sum(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+                int_block = int_block + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
                 min_diss_block = min(min_diss_block, minval(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3) )
                 max_diss_block = max(max_diss_block, maxval(hvy_tmp(:,:,:,:,hvy_active(k)))*dx(1)*dx(2)*dx(3) )
             else
