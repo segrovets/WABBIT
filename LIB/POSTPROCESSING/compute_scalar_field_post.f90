@@ -82,6 +82,8 @@ subroutine compute_scalar_field_post(params)
     params%domain_size(3) = domain(3)
     params%Bs = Bs
     allocate(params%butcher_tableau(1,1))
+    allocate(params%symmetry_vector_component(1))
+    params%symmetry_vector_component(1) = "0" ! scalar
     ! no refinement is made in this postprocessing tool; we therefore allocate about
     ! the number of blocks in the file (and not much more than that)
     params%number_blocks = ceiling(  real(lgt_n)/real(params%number_procs) )
@@ -129,9 +131,11 @@ subroutine compute_scalar_field_post(params)
         write( fname,'(a, "_", i12.12, ".h5")') 'gradx', nint(time * 1.0e6_rk)
         call write_field(fname, time, iteration, 1, params, lgt_block,&
         hvy_tmp, lgt_active, lgt_n, hvy_n, hvy_active )
+
         write( fname,'(a, "_", i12.12, ".h5")') 'grady', nint(time * 1.0e6_rk)
         call write_field(fname, time, iteration, 2, params, lgt_block,&
         hvy_tmp, lgt_active, lgt_n, hvy_n, hvy_active )
+
         if (params%dim == 3) then
             write( fname,'(a, "_", i12.12, ".h5")') 'gradz', nint(time * 1.0e6_rk)
             call write_field(fname, time, iteration, 3, params, lgt_block, &

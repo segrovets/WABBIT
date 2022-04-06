@@ -179,7 +179,7 @@ program main
     call set_initial_grid( params, lgt_block, hvy_block, hvy_neighbor, lgt_active, hvy_active, &
     lgt_n, hvy_n, lgt_sortednumlist, params%adapt_inicond, time, iteration, hvy_mask, hvy_tmp )
 
-    if (.not. params%read_from_files .or. params%adapt_inicond) then
+    if ((.not. params%read_from_files .or. params%adapt_inicond).and.(time>=params%write_time_first)) then
         ! save initial condition to disk (unless we're reading from file and do not adapt,
         ! in which case this makes no sense)
         ! we need to sync ghost nodes in order to compute the vorticity, if it is used and stored.
@@ -219,8 +219,15 @@ program main
 
     ! next write time for reloaded data
     if (params%write_method == 'fixed_time') then
-        params%next_write_time = floor(time/params%next_write_time)*params%next_write_time + params%next_write_time
-        params%next_stats_time = floor(time/params%next_stats_time)*params%next_stats_time + params%next_stats_time
+        params%next_write_time = real(floor(time/params%write_time), kind=rk)*params%write_time + params%write_time
+        params%next_stats_time = real(floor(time/params%tsave_stats), kind=rk)*params%tsave_stats + params%tsave_stats
+
+        ! sometimes, rarely, floor can be tricky: say we resume a run at t=2.26 and write_time is 0.01. if the h5 file
+        ! is exactly at 2.26 but maybe the last digit flips (machine precision) it happens very rarely that
+        ! floor(2.26/0.01) = 225 (and not 226). Then, WABBIT misses the next write time (and produces no output anymore...)
+        ! correct for this mistake:
+        if (abs(params%next_write_time-time)<=1.0e-10_rk) params%next_write_time = params%next_write_time + params%write_time
+        if (abs(params%next_stats_time-time)<=1.0e-10_rk) params%next_stats_time = params%next_stats_time + params%tsave_stats
     end if
 
 
@@ -230,9 +237,17 @@ program main
     !---------------------------------------------------------------------------
     ! main time loop
     !---------------------------------------------------------------------------
-    if (rank==0) write(*,*) "starting main time loop"
-    keep_running = .true.
+    if (rank==0) then
+        write(*,*) "params%next_write_time=", params%next_write_time
+        write(*,*) "params%next_stats_time=", params%next_stats_time
+        write(*,*) ""
+        write(*,*) "        --------------------------------------------------"
+        write(*,*) "        | On your marks, ready, starting main time loop! |"
+        write(*,*) "        --------------------------------------------------"
+        write(*,*) ""
+    endif
 
+    keep_running = .true.
     do while ( time<params%time_max .and. iteration<params%nt .and. keep_running)
         t2 = MPI_wtime()
 
@@ -312,12 +327,20 @@ program main
             it_is_time_to_save_data = .false.
             if ((params%write_method=='fixed_freq' .and. modulo(iteration, params%write_freq)==0) .or. &
                 (params%write_method=='fixed_time' .and. abs(time - params%next_write_time)<1.0e-12_rk)) then
-                it_is_time_to_save_data= .true.
+                it_is_time_to_save_data = .true.
             endif
-            if ((MPI_wtime()-tstart)/3600.0_rk - params%walltime_last_write > params%walltime_write) then
-                params%walltime_last_write = MPI_wtime()
-                it_is_time_to_save_data= .true.
+            ! do not save any output before this time (so maybe revoke the previous decision)
+            if (time<=params%write_time_first) then
+                it_is_time_to_save_data = .false.
             endif
+            ! save after walltime unit is not affected by write_time_first
+            if ((MPI_wtime()-tstart) - params%walltime_last_write > params%walltime_write*3600.0_rk) then
+                params%walltime_last_write = MPI_wtime()-tstart
+                it_is_time_to_save_data = .true.
+            endif
+            ! it can rarely happen that not all proc arrive at the same time at the above condition, then some decide to
+            ! save data and others do not. this is a rare but severe problem, to solve it, synchronize:
+            call MPI_BCAST( it_is_time_to_save_data, 1, MPI_LOGICAL, 0, WABBIT_COMM, mpicode )
 
             !*******************************************************************
             ! filter

@@ -90,8 +90,6 @@ subroutine ini_file_to_params( params, filename )
     ! read statistics parameters
     call read_param_mpi(FILE, 'Statistics', 'nsave_stats', params%nsave_stats, 99999999_ik )
     call read_param_mpi(FILE, 'Statistics', 'tsave_stats', params%tsave_stats, 9999999.9_rk )
-    !> assume start at time 0.0 /todo change if start with reloaded data
-    params%next_stats_time = 0.0_rk + params%tsave_stats
 
     !***************************************************************************
     ! WABBIT needs to know about the mask function (if penalization is used): does it contain
@@ -230,7 +228,7 @@ end subroutine ini_file_to_params
     call read_param_mpi(FILE, 'Domain', 'symmetry_BC', params%symmetry_BC, params%symmetry_BC )
 
      do i = 1, 3
-         if (.not. (params%periodic_BC(i) .xor. params%symmetry_BC(i)) ) then
+         if (.not. (params%periodic_BC(i) .or. params%symmetry_BC(i)) ) then
              call abort(92841123, "Get your crowbar: the arrays for periodic_BC and symmetry_BC are incompatible.")
          endif
      enddo
@@ -346,12 +344,11 @@ end subroutine ini_file_to_params
       call read_param_mpi(FILE, 'Time', 'write_method', params%write_method, "fixed_freq" )
       ! read output write frequency
       call read_param_mpi(FILE, 'Time', 'write_freq', params%write_freq, 25 )
-      ! read output write frequency
+      ! read output write interval
       call read_param_mpi(FILE, 'Time', 'write_time', params%write_time, 1.0_rk )
+      call read_param_mpi(FILE, 'Time', 'write_time_first', params%write_time_first, 0.0_rk )
       ! read output write frequency
       call read_param_mpi(FILE, 'Time', 'walltime_write', params%walltime_write, 99999.9_rk )
-      ! assume start at time 0.0
-      params%next_write_time = 0.0_rk + params%write_time
       ! read value of fixed time step
       call read_param_mpi(FILE, 'Time', 'dt_fixed', params%dt_fixed, 0.0_rk )
       ! read value of fixed time step
