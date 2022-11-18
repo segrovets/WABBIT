@@ -144,6 +144,7 @@ program main_post
         if (params%rank==0) then
             write(*,*) "Available Postprocessing tools are:"
             write(*,*) "--energy-dissipation"
+            write(*,*) "--extract-slice"
             write(*,*) "--sparse-to-dense"
             write(*,*) "--dense-to-sparse"
             write(*,*) "--mean"

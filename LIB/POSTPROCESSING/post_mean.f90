@@ -99,6 +99,7 @@ subroutine post_mean(params)
     call MPI_REDUCE(meanl,meani,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,WABBIT_COMM,mpicode)
 
     if (params%dim == 3) then
+        ! this is totally redundant, meani on the rhs is equal to inti, so we can perform one less operation.
         meani = meani / (params%domain_size(1)*params%domain_size(2)*params%domain_size(3))
         inti = meani*product(domain)
     else

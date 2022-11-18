@@ -41,13 +41,13 @@ subroutine post_turbulence(params)
     real(kind=rk), dimension(3)        :: domain
     integer(kind=ik)                   :: nwork
     !real(kind=rk)                      :: dissipation_sum = 0.0_rk
-    real(kind=rk)                      :: nu, L_sponge
+    real(kind=rk)                      :: nu, L_sponge, use_sponge
     integer(kind=2)                    :: domain_n(1:3)
     integer(kind=ik)                   :: N_mask_components = 0_ik
-    integer(kind=ik)                   :: N_sponge_cells = 1_ik
+    integer(kind=ik)                   :: N_sponge_points = 0_ik
     type(inifile)                      :: FILE
     !----------- inclusions for integral calc --------------------------------------------------------------
-    real(kind=rk)    :: int_block, mean_total, int_total, max_diss, min_diss, max_diss_block, min_diss_block
+    real(kind=rk)    :: int_block, mean_total, int_total, max_diss, min_diss, max_diss_block, min_diss_block !, diss !delete diss later
     integer(kind=ik)    :: llim_i, llim_j, llim_k, ulim_i, ulim_j, ulim_k ! upper and lower limits for integral 
     integer(kind=ik)    :: mpicode 
     !-----------------------------------------------------------------------------------------------------
@@ -70,6 +70,9 @@ subroutine post_turbulence(params)
             write(*,*) " order = 2 or 4"
             write(*,*) " integral saved in diss_*.key"
             write(*,*) "-----------------------------------------------------------"
+            write(*,*) " WARNING: this script currently only works for Re == 1 / nu, if otherwise revise source"
+            write(*,*) "-----------------------------------------------------------"
+
         end if
         return
     endif
@@ -98,6 +101,7 @@ subroutine post_turbulence(params)
     call read_ini_file_mpi(FILE, ini_file, .true.)
     call read_param_mpi(FILE, 'ACM-new', 'nu', nu, 1e-1_rk)
     call read_param_mpi(FILE, 'Sponge', 'L_sponge', L_sponge, 1.0_rk )
+    call read_param_mpi(FILE, 'Sponge', 'use_sponge', use_sponge, 0.0_rk) !default disabled
     call clean_ini_file_mpi(FILE)
  
 
@@ -174,9 +178,9 @@ subroutine post_turbulence(params)
     !! distribute blocks over mpi processes
 
     ! set initiate int_block, min_diss and max_diss
-    int_block = 0.0_rk
-    min_diss_block = 10e3_rk
-    max_diss_block = -10e3_rk
+    int_block = 0.0_rk !integral
+    min_diss_block = 10e3_rk !minimum
+    max_diss_block = -10e3_rk !maximum
 
     ! calculate energy dissipation
     do k = 1, hvy_n
@@ -187,43 +191,58 @@ subroutine post_turbulence(params)
         call get_adjacent_boundary_surface_normal( lgt_block(lgt_id, 1:lgt_block(lgt_id,params%max_treelevel+IDX_MESH_LVL)), &
         params%domain_size, params%Bs, params%dim, domain_n )
 
-        ! determine extent of sponge layer
-        N_sponge_cells = NINT(L_sponge / dx(1))
-
         if (operator == "--energy-dissipation") then
             call compute_energy_dissipation( hvy_block(:,:,:,1,hvy_active(k)), &
-            hvy_block(:,:,:,2,hvy_active(k)), hvy_block(:,:,:,3,hvy_active(k)),&
+            hvy_block(:,:,:,2,hvy_active(k)), hvy_block(:,:,:,3,hvy_active(k)), &
             dx, Bs, g, params%order_discretization, hvy_tmp(:,:,:,1,hvy_active(k)),&
             nu, params%rank)
-
-            llim_i = g+1
+            
+            llim_i = g+1 !lower limit i
+            ulim_i = Bs(1)+g-1 !upper limit i
             llim_j = g+1
-            ulim_i = Bs(1)+g-1
             ulim_j = Bs(2)+g-1
             if (params%dim == 3) then
                 llim_k = g+1
                 ulim_k = Bs(3)+g-1
             endif
-            ! if block is on flow boundary we skip N cells from the edge to avoid sponge layer
-            if (domain_n(1) > 0) ulim_i = Bs(1)+g-1-N_sponge_cells
-            if (domain_n(1) < 0) llim_i = g+1+N_sponge_cells
-            if (domain_n(2) > 0) ulim_j = Bs(2)+g-1-N_sponge_cells
-            if (domain_n(2) < 0) llim_j = g+1+N_sponge_cells
-            if (params%dim == 3) then
-                if (domain_n(3) > 0) ulim_k = Bs(3)+g-1-N_sponge_cells
-                if (domain_n(3) < 0) llim_k = g+1+N_sponge_cells
+            
+
+            if (NINT(use_sponge) == 1 ) then  
+                
+                ! determine extent of sponge layer/
+                N_sponge_points = NINT(L_sponge / dx(1))
+                
+                if (params%rank == 0 .and. k == 1) then
+                    write(*,*) "Sponge layer enabled, skipping ",N_sponge_points,"from the perimeter during integration"
+                endif
+!            ! if block is on flow boundary we skip N cells from the edge to avoid sponge layer
+                if (domain_n(1) > 0) ulim_i = Bs(1)+g-1-N_sponge_points
+                if (domain_n(1) < 0) llim_i = g+1+N_sponge_points
+                if (domain_n(2) > 0) ulim_j = Bs(2)+g-1-N_sponge_points
+                if (domain_n(2) < 0) llim_j = g+1+N_sponge_points
+                if (params%dim == 3) then
+                    if (domain_n(3) > 0) ulim_k = Bs(3)+g-N_sponge_points
+                    if (domain_n(3) < 0) llim_k = g+1+N_sponge_points
+                endif
+            else
+                if (params%rank == 0 .and. k == 1) then
+                    write(*,*) "Sponge layer not enabled, or its exclusion is disabled:: integrating over whole domain"
+                endif
             endif
 
             if (params%dim == 3) then
-                !int_block = int_block + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
+                !int_block = int_block + sum(hvy_tmp(:,:,:,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
                 int_block = int_block + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3)
-                min_diss_block = min(min_diss_block, minval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3) )
-                max_diss_block = max(max_diss_block, maxval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k)))*dx(1)*dx(2)*dx(3) )
+
+                min_diss_block = min(min_diss_block, minval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k))))
+                max_diss_block = max(max_diss_block, maxval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,llim_k:ulim_k,1,hvy_active(k))))
             else
                 int_block = int_block + sum(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k)))*dx(1)*dx(2)
-                min_diss_block = min(min_diss_block, minval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k)))*dx(1)*dx(2) )
-                max_diss_block = max(max_diss_block, maxval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k)))*dx(1)*dx(2) )
+
+                min_diss_block = min(min_diss_block, minval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k))))
+                max_diss_block = max(max_diss_block, maxval(hvy_tmp(llim_i:ulim_i,llim_j:ulim_j,1,1,hvy_active(k))))
             endif
+            !write(*,*) params%rank, int_block
         else
             call abort(1812011, "operator is not --energy-dissipation")
         endif

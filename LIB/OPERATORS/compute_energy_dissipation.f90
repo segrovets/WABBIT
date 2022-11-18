@@ -84,6 +84,7 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
                                                 + v_dx**2+v_dz**2 &
                                                 + w_dx**2+w_dy**2 &
                                                 + 2.d0*(v_dx*u_dy + w_dx*u_dz + w_dy*v_dz))*nu
+                        
                     end do
                 end do
             end do
@@ -135,6 +136,7 @@ subroutine compute_energy_dissipation(u, v, w, dx, Bs, g, discretization, dissip
                                                 + v_dx**2+v_dz**2 &
                                                 + w_dx**2+w_dy**2 &
                                                 + 2.d0*(v_dx*u_dy + w_dx*u_dz + w_dy*v_dz))*nu      
+                        
                     end do
                 end do
             end do

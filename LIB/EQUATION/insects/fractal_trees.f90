@@ -137,7 +137,7 @@ subroutine fractal_tree_init(Insect)
             treedata_boundingbox(icyl, 1:6) = (/xmin, ymin, zmin, xmax, ymax, zmax/)
         enddo
 
-        if (root) write(*,'("Computing static bounding done.")')
+        if (root) write(*,* ) "Computing static bounding done.", treedata_boundingbox
 
     else
         call abort(20200504, "fractal_tree_init seems to be called twice.")
